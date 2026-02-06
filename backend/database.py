@@ -12,10 +12,12 @@ load_dotenv()
 # 1. Read from Environment Variable (Best Practice for User's Own DB)
 # Example: postgresql://user:password@localhost/dbname
 env_db_url = os.getenv("FINANCIAL_DB_URL")
+if env_db_url and env_db_url.startswith("postgres://"):
+    env_db_url = env_db_url.replace("postgres://", "postgresql://", 1)
 
 if env_db_url:
     DATABASE_URL = env_db_url
-    print(f"🔌 Connecting to Custom Database: {DATABASE_URL}")
+    print(f"🔌 Connecting to Custom Database: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else 'HIDDEN'}")
 else:
     # Fallback to local SQLite if no custom DB provided
     DATABASE_URL = "sqlite:///./financial_health_v2.db"
