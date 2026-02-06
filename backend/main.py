@@ -157,35 +157,52 @@ def generate_narrative(score, flags, metrics, lang):
     
     # English - Structured Investor-Grade Insight
     expense_ratio = metrics.get('expense_ratio', 0)
-    debt_burden = metrics.get('debt_burden_ratio', 0)
+    net_margin = metrics.get('net_profit_margin', 0)
+    dscr = metrics.get('dscr', 0)
+    burn_rate = metrics.get('burn_rate', 0)
     
-    # 1. Summary
-    status = "Robust Financial Health" if score > 80 else "Moderate Stability" if score > 50 else "Critical Instability"
-    summary = f"The business is currently demonstrating {status} with a health score of {score}/100. The financial foundation is {'strong' if score > 60 else 'weak'}, driven by {'efficient' if expense_ratio < 0.7 else 'high'} operating costs."
+    # 1. Executive Summary
+    status = "Robust Financial Health" if score > 80 else "Moderate Stability" if score > 50 else "Critical Financial Instability"
+    summary = (f"The business indicates {status} (Score: {score}/100) with a Net Profit Margin of {net_margin:.1f}%. "
+               f"{'Operations are highly profitable.' if net_margin > 15 else 'Margins are tight; volume growth is essential.' if net_margin > 0 else 'The business is operating at a loss, prioritizing immediate efficiency audits.'}")
 
-    # 2. Diagnosis
-    diagnosis = ""
-    if score > 80:
-        diagnosis = "The entity is well-positioned for aggressive expansion. Capital efficiency is high, and liquidity buffers are sufficient to absorb market volatility."
-    elif score > 50:
-        diagnosis = "The entity is stable but lacks the velocity for rapid scaling. Operational inefficiencies in cost structure are dragging on net margins."
+    # 2. Strategic Diagnosis
+    diagnosis_parts = []
+    
+    # Liquidity Check
+    if metrics.get('net_cash_flow', 0) > 0:
+        diagnosis_parts.append("Liquidity is strong, providing a buffer for reinvestment.")
     else:
-        diagnosis = "The entity is facing significant liquidity pressure. Solvency risks are elevated due to negative cash flow or sustainable debt service obligations."
+        diagnosis_parts.append(f"Liquidity is under pressure with an average monthly burn rate of ₹{burn_rate:,.0f}. Immediate cash preservation is required.")
+        
+    # Solvency Check (DSCR)
+    if dscr < 1.2:
+        diagnosis_parts.append(f"Solvency Risk: Debt Service Coverage Ratio (DSCR) is {dscr:.2f}, indicating difficulty in meeting debt obligations.")
+    elif dscr > 2.0:
+        diagnosis_parts.append("Solvency is robust; the balance sheet has capacity for additional leverage to fund expansion.")
+        
+    diagnosis = " ".join(diagnosis_parts)
 
-    # 3. Recommendations
+    # 3. Actionable Recommendations
     recs = []
+    
     if score < 60:
-        recs = [
-            "Immediate Cost Rationalization: Conduct a zero-based budget audit to reduce OPEX by 12-15%.",
-            "Debt Restructuring: Initiate dialogue with creditors to convert short-term obligations into long-term structures.",
-            "Working Capital: Tighten credit terms for receivables (reduce DSO) to boost cash inflow."
-        ]
+        # Turnaround Focus
+        recs.append("Immediate OPEX Audit: Target a 15% reduction in fixed costs to restore positive Net Margins.")
+        if burn_rate > 0:
+            recs.append(f"Burn Rate Control: Extend vendor payment terms (DPO) to preserve roughly ₹{burn_rate*.5:,.0f} in monthly working capital.")
+        
+        if dscr < 1.0:
+            recs.append("Debt Restructuring: Renegotiate EMI schedules to align with current cash inflow velocity.")
+        else:
+            recs.append("Revenue Diversification: Launch a low-cost pilot to activate a secondary revenue stream.")
+            
     else:
-        recs = [
-            "Capital Deployment: Utilize surplus free cash flow to acquire high-yield short-term instruments.",
-            "Supply Chain: Leverage strong liquidity to negotiate 2-5% early-payment discounts with suppliers.",
-            "Expansion: Allocate 15% of retained earnings towards new digital acquisition channels."
-        ]
+        # Growth Focus
+        recs.append("Capital Efficiency: Reinvest retained earnings into efficiency automation to improve Net Margins by 2-3%.")
+        if dscr > 2.0:
+            recs.append("Leverage Strategy: Utilize strong debt coverage to secure a low-interest credit line for inventory expansion.")
+        recs.append("Market Penetration: Allocate 10-15% of surplus liquidity towards aggressively acquiring market share in high-margin segments.")
         
     return {
         "summary": summary,

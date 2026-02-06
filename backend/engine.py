@@ -183,12 +183,28 @@ def analyze_financials(df: pd.DataFrame):
         else:
             forecast_next_month = 0.0
         
+        # Advanced Metric Calculations
+        net_profit_margin = ((total_revenue - total_expenses) / total_revenue) * 100 if total_revenue != 0 else 0.0
+        
+        # Burn Rate Calculation (Mean of negative cash flow months)
+        negative_months = df[df['Net Cash Flow'] < 0]
+        burn_rate = abs(negative_months['Net Cash Flow'].mean()) if not negative_months.empty else 0.0
+        
+        # DSCR (Debt Service Coverage Ratio)
+        # NOI approximation: Revenue - Expenses (excluding debt repayment which is usually below line, but here 'Operating Expenses' might vary. 
+        # Standard: (Revenue - OpEx) / Debt Service.
+        noi = total_revenue - total_expenses
+        dscr = noi / total_loan_repayment if total_loan_repayment > 0 else 100.0 # High value if no debt breakdown
+        
         metrics = {
             "rev_growth_pct": float(round(rev_growth_pct, 2)),
             "expense_ratio": float(round(expense_ratio, 2)),
+            "net_profit_margin": float(round(net_profit_margin, 2)),
             "net_cash_flow": float(round(total_net_cash_flow, 2)),
             "working_capital": float(round(working_capital, 2)),
             "debt_burden_ratio": float(round(debt_burden_ratio, 2)),
+            "dscr": float(round(dscr, 2)),
+            "burn_rate": float(round(burn_rate, 2)),
             "cash_flow_volatility": float(round(cash_flow_volatility, 2))
         }
         

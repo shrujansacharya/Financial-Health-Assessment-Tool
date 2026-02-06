@@ -180,7 +180,7 @@ export default function Dashboard({ data, lang, t }: { data: FinancialData, lang
                         </h2>
                     </div>
                     <div className="prose prose-invert prose-sm text-gray-300 leading-relaxed max-h-[500px] overflow-y-auto custom-scrollbar flex-1">
-                        <div className="whitespace-pre-line text-sm font-light">
+                        <div className="whitespace-pre-line text-base leading-relaxed font-normal text-gray-200">
                             {aiInsights}
                         </div>
                     </div>
