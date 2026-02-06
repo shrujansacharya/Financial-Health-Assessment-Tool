@@ -54,10 +54,35 @@ async def upload_file(
             df = pd.read_csv(io.BytesIO(contents))
         elif file.filename.endswith(('.xls', '.xlsx')):
             df = pd.read_excel(io.BytesIO(contents))
+        elif file.filename.endswith('.pdf'):
+            try:
+                import pdfplumber
+                with pdfplumber.open(io.BytesIO(contents)) as pdf:
+                    all_text = ""
+                    data = []
+                    for page in pdf.pages:
+                        tables = page.extract_tables()
+                        for table in tables:
+                            for row in table:
+                                # Clean mock strategy: assume row is [Date, Description, Amount, ...]
+                                # This is a heuristic for hackathon demo purposes
+                                if row and len(row) >= 2:
+                                    data.append(row)
+                
+                # Convert list to DataFrame
+                if data:
+                    df = pd.DataFrame(data[1:], columns=data[0])
+                    print("Extracted PDF Table Data")
+                else:
+                    raise ValueError("No tabular data found in PDF")
+
+            except Exception as e:
+                print(f"PDF extraction error: {e}")
+                raise HTTPException(status_code=400, detail="Could not parse PDF table data. Please ensure it is a standard bank statement format.")
         else:
-             raise HTTPException(status_code=400, detail="Invalid file format. Only CSV or XLSX allowed.")
+             raise HTTPException(status_code=400, detail="Invalid file format. Only CSV, XLSX, or PDF allowed.")
             
-        print(f"Dataframe loaded. Columns: {df.columns.tolist()}")
+        print(f"Dataframe loaded. Columns: {df.columns.tolist() if df is not None else 'None'}")
         
         # 2. Analysis
         result = analyze_financials(df)
@@ -135,23 +160,30 @@ def generate_narrative(score, flags, lang):
             narrative += "1. उच्च उपज वाली अल्पकालिक संपत्तियों में अधिशेष नकदी का पुनर्निवेश करें।\n2. आपूर्तिकर्ताओं के साथ थोक खरीद छूट का अन्वेषण करें।\n3. उत्पाद लाइनों या विपणन पहुंच का विस्तार करने पर विचार करें।"
         return narrative
     else:
-        # English
-        narrative = "Based on the analysis, the business is demonstrating "
-        if score > 80: narrative += "strong financial health with robust liquidity and growth."
-        elif score > 50: narrative += "moderate financial health. While stable, there are areas of inefficiency."
-        else: narrative += "critical financial instability. Immediate structural changes are required."
-        
-        narrative += "\n\n**Why it matters:**\n"
-        if len(flags) > 0:
-            narrative += f"The identified risks ({', '.join([f['type'] for f in flags])}) directly impact your ability to secure future financing and maintain operations."
-        else:
-            narrative += "Strong metrics indicate a prime position for expansion or reinvestment."
-            
-        narrative += "\n\n**Recommendations:**\n"
+        # English - Professional Investor-Grade Insight
+        narrative = f"""### **Executive Financial Summary**
+The business is currently demonstrating **{'Robust Financial Health' if score > 80 else 'Moderate Stability' if score > 50 else 'Critical Financial Instability'}** with a health score of **{score}/100**. 
+
+**Key Financial Indicators:**
+- **Expense Efficiency:** The expense ratio is at **{metrics.get('expense_ratio', 0):.2f}**, indicating {'highly efficient cost management' if metrics.get('expense_ratio', 1) < 0.6 else 'potential overspending relative to revenue'}.
+- **Debt Serviceability:** The debt burden is **{metrics.get('debt_burden_ratio', 0):.2f}**, suggesting {'a healthy balance sheet leveragable for growth' if metrics.get('debt_burden_ratio', 1) < 0.3 else 'high leverage that requires immediate attention'}.
+- **Cash Flow Position:** Net cash flow stands at **{metrics.get('net_cash_flow', 0)}**, showing {'strong liquidity reserves' if metrics.get('net_cash_flow', 0) > 0 else 'liquidity constraints'}.
+
+### **Strategic Diagnosis**
+**{'Growth Prime' if score > 80 else 'Consolidation Phase' if score > 50 else 'Turnaround Required'}**: 
+{'The entity is well-positioned for aggressive expansion. Capital efficiency is high, and liquidity buffers are sufficient to absorb market volatility or fund R&D.' if score > 80 else 'The entity is stable but lacks the velocity for rapid scaling. Operational inefficiencies in cost structure are dragging on net margins.' if score > 50 else 'The entity is facing an existential liquidity crisis. Solvency risks are elevated due to negative cash flow or unsustainable debt service obligations.'}
+
+### **Actionable Recommendations**
+"""
         if score < 60:
-            narrative += "1. Immediately renegotiate payment terms with suppliers to improve cash flow.\n2. Audit operating expenses to cut 10% of non-essential costs.\n3. Pause new borrowing until debt burden stabilizes."
+            narrative += """1. **Immediate Cost Rationalization:** Conduct a zero-based budget audit to reduce OPEX by 12-15% within Q3. Focus on non-essential administrative overheads.
+2. **Debt Restructuring:** Initiate dialogue with creditors to convert short-term obligations into long-term structures to ease monthly cash outflows.
+3. **Working Capital Optimization:** Tighten credit terms for receivables (reduce DSO) and negotiate extended terms with vendors (increase DPO)."""
         else:
-            narrative += "1. Reinvest surplus cash into high-yield short-term assets.\n2. Explore bulk-purchase discounts with suppliers using strong liquidity.\n3. Consider expanding product lines or marketing reach."
+            narrative += """1. **Capital Deployment Strategy:** Utilize surplus free cash flow to acquire high-yield short-term instruments (Liquid Funds/Treasury bills) to combat inflation erosion.
+2. **Supply Chain Leverage:** Leverage strong liquidity to negotiate **2-5% early-payment discounts** with key suppliers, directly boosting Gross Margins.
+3. **Strategic Expansion:** Allocate 15% of retained earnings towards opening new digital acquisition channels or regional market entry."""
+        
         return narrative
 
 if __name__ == "__main__":
