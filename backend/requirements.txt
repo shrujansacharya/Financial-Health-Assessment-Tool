@@ -6,3 +6,6 @@ python-multipart
 numpy
 sqlalchemy
 pdfplumber
+psycopg2-binary
+python-dotenv
+openai

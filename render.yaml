@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: financial-health-backend
+    runtime: python
+    region: singapore
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
+      - key: FINANCIAL_DB_URL
+        fromDatabase:
+          name: financial-health-db
+          property: connectionString
+
+databases:
+  - name: financial-health-db
+    databaseName: financial_health
+    user: financial_user
+    plan: free
