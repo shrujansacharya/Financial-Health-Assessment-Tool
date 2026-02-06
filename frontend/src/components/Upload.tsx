@@ -109,12 +109,16 @@ export default function Upload({ onUploadSuccess, setLoading, loading, lang, t }
                         className="w-full appearance-none bg-transparent text-white border-0 py-3 px-4 pr-8 rounded-lg outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
                     >
                         <option value="" disabled className="bg-background-card text-gray-400">Select your industry...</option>
-                        <option value="Retail" className="bg-background-card">Retail & E-commerce</option>
+                        <option value="Retail" className="bg-background-card">Retail</option>
+                        <option value="E-commerce" className="bg-background-card">E-commerce</option>
                         <option value="Manufacturing" className="bg-background-card">Manufacturing</option>
                         <option value="Services" className="bg-background-card">Services</option>
                         <option value="Agriculture" className="bg-background-card">Agriculture</option>
                         <option value="Logistics" className="bg-background-card">Logistics & Supply Chain</option>
                         <option value="Technology" className="bg-background-card">Technology & SaaS</option>
+                        <option value="Healthcare" className="bg-background-card">Healthcare</option>
+                        <option value="Construction" className="bg-background-card">Construction</option>
+                        <option value="Other" className="bg-background-card">Other</option>
                     </select>
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
