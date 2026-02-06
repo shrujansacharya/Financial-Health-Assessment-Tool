@@ -9,3 +9,5 @@ pdfplumber
 psycopg2-binary
 python-dotenv
 reportlab
+matplotlib
+openai
