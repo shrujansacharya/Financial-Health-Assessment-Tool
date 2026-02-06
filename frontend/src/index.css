@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background-deep text-white antialiased font-sans;
+    background-image: radial-gradient(circle at 15% 50%, rgba(79, 70, 229, 0.08), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.08), transparent 25%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-glass-bg border border-glass-border backdrop-blur-2xl relative overflow-hidden transition-all duration-300;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    border-radius: 16px;
+  }
+
+  .glass-panel::before {
+    content: '';
+    @apply absolute top-0 left-0 right-0 h-[1px] opacity-50;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+  }
+
+  .glass-panel:hover {
+    @apply -translate-y-1 border-white/10;
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary to-secondary text-white border-0 px-6 py-3 rounded-lg font-semibold cursor-pointer transition-all duration-300 shadow-lg shadow-primary/40 relative overflow-hidden;
+  }
+
+  .btn-primary:hover {
+    @apply -translate-y-0.5 shadow-xl shadow-primary/60 brightness-110;
+  }
+
+  .btn-primary:active {
+    @apply translate-y-0;
+  }
+}
+
+/* Custom scrollbar for webkit */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0E14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2A3040;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4F46E5;
+}
