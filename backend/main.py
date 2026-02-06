@@ -105,11 +105,23 @@ async def upload_file(
             result['ai_insights_hi'] = "Hindi translation pending real API support." 
         else:
             # Fallback to Rule-Based Mock
-            narrative_en = generate_narrative(score, flags, "en")
-            narrative_hi = generate_narrative(score, flags, "hi")
-            result['ai_insights'] = narrative_en
-            result['ai_insights_en'] = narrative_en
-            result['ai_insights_hi'] = narrative_hi
+            narrative_data = generate_narrative(score, flags, metrics, "en")
+            
+            # Construct formatted string for Frontend/DB
+            if isinstance(narrative_data, dict) and "summary" in narrative_data:
+                full_text = f"EXECUTIVE SUMMARY\n{narrative_data['summary']}\n\nSTRATEGIC DIAGNOSIS\n{narrative_data['diagnosis']}\n\nRECOMMENDATIONS\n"
+                for i, rec in enumerate(narrative_data['recommendations'], 1):
+                    full_text += f"{i}. {rec}\n"
+                
+                result['ai_insights'] = full_text
+                result['structured_insights'] = narrative_data
+            else:
+                 result['ai_insights'] = str(narrative_data)
+
+            # Hindi Mock
+            narrative_hi = generate_narrative(score, flags, metrics, "hi")
+            result['ai_insights_hi'] = narrative_hi.get('full_text', '')
+            result['ai_insights_en'] = result['ai_insights']
 
         if language == 'hi':
             result['ai_insights'] = result['ai_insights_hi']
@@ -139,52 +151,47 @@ async def get_report(report_id: str):
         return Response(content=report_cache[report_id], media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=report_{report_id}.pdf"})
     return HTTPException(status_code=404, detail="Report not found")
 
-def generate_narrative(score, flags, lang):
+def generate_narrative(score, flags, metrics, lang):
     if lang == 'hi':
-        # Simple Hindi templates
-        narrative = "विश्लेषण के आधार पर, व्यवसाय "
-        if score > 80: narrative += "मजबूत वित्तीय स्थिति में है।"
-        elif score > 50: narrative += "मध्यम वित्तीय स्थिति में है।"
-        else: narrative += "गंभीर वित्तीय अस्थिरता का सामना कर रहा है।"
-        
-        narrative += "\n\n**यह महत्वपूर्ण क्यों है:**\n"
-        if len(flags) > 0:
-            narrative += f"पहचानी गई जोखिम ({', '.join([f['type'] for f in flags])}) सीधे आपके वित्त पोषण को प्रभावित करती है।"
-        else:
-            narrative += "मजबूत मेट्रिक्स विस्तार के लिए एक प्रधान स्थिति दर्शाते हैं।"
-            
-        narrative += "\n\n**सिफारिशें:**\n"
-        if score < 60:
-            narrative += "1. आपूर्तिकर्ताओं के साथ भुगतान शर्तों पर फिर से बातचीत करें।\n2. अनावश्यक खर्चों में 10% की कटौती करें।\n3. ऋण बोझ स्थिर होने तक नया उधार रोकें।"
-        else:
-            narrative += "1. उच्च उपज वाली अल्पकालिक संपत्तियों में अधिशेष नकदी का पुनर्निवेश करें।\n2. आपूर्तिकर्ताओं के साथ थोक खरीद छूट का अन्वेषण करें।\n3. उत्पाद लाइनों या विपणन पहुंच का विस्तार करने पर विचार करें।"
-        return narrative
+        return {"full_text": "विश्लेषण के आधार पर, वित्तीय स्थिति का मूल्यांकन किया गया है। विस्तृत रिपोर्ट के लिए कृपया अंग्रेजी संस्करण देखें।"}
+    
+    # English - Structured Investor-Grade Insight
+    expense_ratio = metrics.get('expense_ratio', 0)
+    debt_burden = metrics.get('debt_burden_ratio', 0)
+    
+    # 1. Summary
+    status = "Robust Financial Health" if score > 80 else "Moderate Stability" if score > 50 else "Critical Instability"
+    summary = f"The business is currently demonstrating {status} with a health score of {score}/100. The financial foundation is {'strong' if score > 60 else 'weak'}, driven by {'efficient' if expense_ratio < 0.7 else 'high'} operating costs."
+
+    # 2. Diagnosis
+    diagnosis = ""
+    if score > 80:
+        diagnosis = "The entity is well-positioned for aggressive expansion. Capital efficiency is high, and liquidity buffers are sufficient to absorb market volatility."
+    elif score > 50:
+        diagnosis = "The entity is stable but lacks the velocity for rapid scaling. Operational inefficiencies in cost structure are dragging on net margins."
     else:
-        # English - Professional Investor-Grade Insight
-        narrative = f"""### **Executive Financial Summary**
-The business is currently demonstrating **{'Robust Financial Health' if score > 80 else 'Moderate Stability' if score > 50 else 'Critical Financial Instability'}** with a health score of **{score}/100**. 
+        diagnosis = "The entity is facing significant liquidity pressure. Solvency risks are elevated due to negative cash flow or sustainable debt service obligations."
 
-**Key Financial Indicators:**
-- **Expense Efficiency:** The expense ratio is at **{metrics.get('expense_ratio', 0):.2f}**, indicating {'highly efficient cost management' if metrics.get('expense_ratio', 1) < 0.6 else 'potential overspending relative to revenue'}.
-- **Debt Serviceability:** The debt burden is **{metrics.get('debt_burden_ratio', 0):.2f}**, suggesting {'a healthy balance sheet leveragable for growth' if metrics.get('debt_burden_ratio', 1) < 0.3 else 'high leverage that requires immediate attention'}.
-- **Cash Flow Position:** Net cash flow stands at **{metrics.get('net_cash_flow', 0)}**, showing {'strong liquidity reserves' if metrics.get('net_cash_flow', 0) > 0 else 'liquidity constraints'}.
-
-### **Strategic Diagnosis**
-**{'Growth Prime' if score > 80 else 'Consolidation Phase' if score > 50 else 'Turnaround Required'}**: 
-{'The entity is well-positioned for aggressive expansion. Capital efficiency is high, and liquidity buffers are sufficient to absorb market volatility or fund R&D.' if score > 80 else 'The entity is stable but lacks the velocity for rapid scaling. Operational inefficiencies in cost structure are dragging on net margins.' if score > 50 else 'The entity is facing an existential liquidity crisis. Solvency risks are elevated due to negative cash flow or unsustainable debt service obligations.'}
-
-### **Actionable Recommendations**
-"""
-        if score < 60:
-            narrative += """1. **Immediate Cost Rationalization:** Conduct a zero-based budget audit to reduce OPEX by 12-15% within Q3. Focus on non-essential administrative overheads.
-2. **Debt Restructuring:** Initiate dialogue with creditors to convert short-term obligations into long-term structures to ease monthly cash outflows.
-3. **Working Capital Optimization:** Tighten credit terms for receivables (reduce DSO) and negotiate extended terms with vendors (increase DPO)."""
-        else:
-            narrative += """1. **Capital Deployment Strategy:** Utilize surplus free cash flow to acquire high-yield short-term instruments (Liquid Funds/Treasury bills) to combat inflation erosion.
-2. **Supply Chain Leverage:** Leverage strong liquidity to negotiate **2-5% early-payment discounts** with key suppliers, directly boosting Gross Margins.
-3. **Strategic Expansion:** Allocate 15% of retained earnings towards opening new digital acquisition channels or regional market entry."""
+    # 3. Recommendations
+    recs = []
+    if score < 60:
+        recs = [
+            "Immediate Cost Rationalization: Conduct a zero-based budget audit to reduce OPEX by 12-15%.",
+            "Debt Restructuring: Initiate dialogue with creditors to convert short-term obligations into long-term structures.",
+            "Working Capital: Tighten credit terms for receivables (reduce DSO) to boost cash inflow."
+        ]
+    else:
+        recs = [
+            "Capital Deployment: Utilize surplus free cash flow to acquire high-yield short-term instruments.",
+            "Supply Chain: Leverage strong liquidity to negotiate 2-5% early-payment discounts with suppliers.",
+            "Expansion: Allocate 15% of retained earnings towards new digital acquisition channels."
+        ]
         
-        return narrative
+    return {
+        "summary": summary,
+        "diagnosis": diagnosis,
+        "recommendations": recs
+    }
 
 if __name__ == "__main__":
     import uvicorn

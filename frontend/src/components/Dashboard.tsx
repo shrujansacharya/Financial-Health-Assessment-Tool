@@ -107,9 +107,17 @@ export default function Dashboard({ data, lang, t }: { data: FinancialData, lang
 
                 {/* Advanced Integrations (New Panel) */}
                 <div className="glass-panel p-6 flex flex-col gap-5">
-                    <h2 className="text-gray-400 font-medium uppercase tracking-widest text-xs flex items-center gap-2">
-                        <Zap size={14} className="text-yellow-400" /> {t.advanced}
-                    </h2>
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-gray-400 font-medium uppercase tracking-widest text-xs flex items-center gap-2">
+                            <Zap size={14} className="text-yellow-400" /> {t.advanced}
+                        </h2>
+                        <button
+                            onClick={() => alert("Mock Integration: Successfully connected to XYZ Bank API (Sandbox Mode).")}
+                            className="text-[10px] bg-primary/20 hover:bg-primary/30 text-primary px-2 py-1 rounded border border-primary/20 transition-colors uppercase font-bold tracking-wide"
+                        >
+                            + Connect Bank
+                        </button>
+                    </div>
 
                     {/* Credit Score */}
                     <div className="bg-white/5 p-4 rounded-xl flex flex-col gap-3 border border-white/5 hover:border-white/10 transition-colors">
