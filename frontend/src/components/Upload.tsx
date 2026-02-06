@@ -15,13 +15,27 @@ export default function Upload({ onUploadSuccess, setLoading, loading, lang, t }
     const [error, setError] = useState<string | null>(null);
     const [dragActive, setDragActive] = useState(false);
 
-    const [industry, setIndustry] = useState('Retail');
+    const [industry, setIndustry] = useState('');
 
-    const handleFile = async (file: File) => {
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+    const handleFileSelect = (file: File) => {
         if (!file) return;
 
-        if (!file.name.endsWith('.csv') && !file.name.endsWith('.xlsx')) {
-            setError("Only .csv or .xlsx files are allowed.");
+        if (!file.name.endsWith('.csv') && !file.name.endsWith('.xlsx') && !file.name.endsWith('.pdf')) {
+            setError("Only .csv, .xlsx, or .pdf files are allowed.");
+            return;
+        }
+
+        setError(null);
+        setSelectedFile(file);
+    };
+
+    const handleAnalyze = async () => {
+        if (!selectedFile) return;
+
+        if (!industry) {
+            setError("Please select an industry to continue.");
             return;
         }
 
@@ -29,7 +43,7 @@ export default function Upload({ onUploadSuccess, setLoading, loading, lang, t }
         setError(null);
 
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', selectedFile);
         formData.append('language', lang);
         formData.append('industry', industry);
 
@@ -68,7 +82,7 @@ export default function Upload({ onUploadSuccess, setLoading, loading, lang, t }
         e.stopPropagation();
         setDragActive(false);
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            handleFile(e.dataTransfer.files[0]);
+            handleFileSelect(e.dataTransfer.files[0]);
         }
     };
 
@@ -84,19 +98,30 @@ export default function Upload({ onUploadSuccess, setLoading, loading, lang, t }
             </div>
 
             {/* Industry Selector */}
-            <div className="mb-8 w-full max-w-xs relative bg-background-card rounded-lg border border-white/10 group">
-                <select
-                    value={industry}
-                    onChange={(e) => setIndustry(e.target.value)}
-                    className="w-full appearance-none bg-transparent text-white border-0 py-3 px-4 pr-8 rounded-lg outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
-                >
-                    <option value="Retail" className="bg-background-card">Retail & E-commerce</option>
-                    <option value="Manufacturing" className="bg-background-card">Manufacturing</option>
-                    <option value="Services" className="bg-background-card">Keep Services</option>
-                    <option value="Agriculture" className="bg-background-card">Agriculture</option>
-                    <option value="Logistics" className="bg-background-card">Logistics & Supply Chain</option>
-                    <option value="Technology" className="bg-background-card">Technology & SaaS</option>
-                </select>
+            <div className="mb-8 w-full max-w-xs space-y-2">
+                <label className="text-sm font-medium text-gray-300 ml-1">
+                    Select Industry <span className="text-red-400">*</span>
+                </label>
+                <div className="relative bg-background-card rounded-lg border border-white/10 group hover:border-primary/50 transition-colors">
+                    <select
+                        value={industry}
+                        onChange={(e) => setIndustry(e.target.value)}
+                        className="w-full appearance-none bg-transparent text-white border-0 py-3 px-4 pr-8 rounded-lg outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
+                    >
+                        <option value="" disabled className="bg-background-card text-gray-400">Select your industry...</option>
+                        <option value="Retail" className="bg-background-card">Retail & E-commerce</option>
+                        <option value="Manufacturing" className="bg-background-card">Manufacturing</option>
+                        <option value="Services" className="bg-background-card">Services</option>
+                        <option value="Agriculture" className="bg-background-card">Agriculture</option>
+                        <option value="Logistics" className="bg-background-card">Logistics & Supply Chain</option>
+                        <option value="Technology" className="bg-background-card">Technology & SaaS</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    </div>
+                </div>
             </div>
 
             <div
@@ -126,6 +151,28 @@ export default function Upload({ onUploadSuccess, setLoading, loading, lang, t }
                                     <div className="h-full bg-primary animate-[loading_1s_ease-in-out_infinite]"></div>
                                 </div>
                             </div>
+                        ) : selectedFile ? (
+                            <div className="space-y-4 animate-fade-in">
+                                <div>
+                                    <h3 className="text-lg font-bold text-white mb-1">File Selected</h3>
+                                    <p className="text-emerald-400 font-medium bg-emerald-500/10 px-3 py-1 rounded-full inline-block border border-emerald-500/20">{selectedFile.name}</p>
+                                    <p className="text-gray-500 text-xs mt-2">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                                </div>
+                                <div className="flex gap-3 justify-center">
+                                    <button
+                                        onClick={() => setSelectedFile(null)}
+                                        className="px-4 py-2 rounded-lg border border-white/10 hover:bg-white/5 text-gray-300 text-sm transition-colors"
+                                    >
+                                        Change File
+                                    </button>
+                                    <button
+                                        onClick={handleAnalyze}
+                                        className="btn-primary"
+                                    >
+                                        Analyze Financials
+                                    </button>
+                                </div>
+                            </div>
                         ) : (
                             <>
                                 <div>
@@ -142,10 +189,11 @@ export default function Upload({ onUploadSuccess, setLoading, loading, lang, t }
                         )}
                     </div>
 
-                    {!loading && (
+                    {!loading && !selectedFile && (
                         <div className="flex gap-6 text-xs font-medium text-gray-500 mt-2 border-t border-white/5 pt-6 w-full justify-center opacity-80">
                             <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"><FileSpreadsheet size={14} className="text-emerald-400" /> CSV</span>
                             <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"><FileSpreadsheet size={14} className="text-emerald-400" /> XLSX</span>
+                            <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"><FileSpreadsheet size={14} className="text-red-400" /> PDF</span>
                         </div>
                     )}
                 </div>
@@ -154,8 +202,8 @@ export default function Upload({ onUploadSuccess, setLoading, loading, lang, t }
                     ref={fileInputRef}
                     type="file"
                     className="hidden"
-                    onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                    accept=".csv,.xlsx"
+                    onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+                    accept=".csv,.xlsx,.pdf"
                 />
             </div>
 
