@@ -1,6 +1,6 @@
 export const translations = {
     en: {
-        title: "Instant Financial Health Analysis",
+        title: "Financial Health Analysis",
         subtitle: "Upload your SME financial data (CSV/XLSX/PDF) to generate an AI-powered health score, risk assessment, and actionable roadmap in seconds.",
         dragDrop: "Drag & Drop your file here",
         browse: "or click to browse",
