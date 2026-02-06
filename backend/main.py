@@ -46,18 +46,19 @@ async def upload_file(
     print(f"Received file: {file.filename}, language: {language}, industry: {industry}")
     
     # 1. File Parsing
+        # 1. File Parsing
     try:
-        contents = await file.read()
+        # Use file.file directly to avoid loading entire file into RAM (Prevent OOM on Render)
         df = None
         
         if file.filename.endswith('.csv'):
-            df = pd.read_csv(io.BytesIO(contents))
+            df = pd.read_csv(file.file)
         elif file.filename.endswith(('.xls', '.xlsx')):
-            df = pd.read_excel(io.BytesIO(contents))
+            df = pd.read_excel(file.file)
         elif file.filename.endswith('.pdf'):
             try:
                 import pdfplumber
-                with pdfplumber.open(io.BytesIO(contents)) as pdf:
+                with pdfplumber.open(file.file) as pdf:
                     all_text = ""
                     data = []
                     for page in pdf.pages:
