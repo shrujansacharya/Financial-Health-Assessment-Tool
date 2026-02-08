@@ -23,7 +23,17 @@ else:
     DATABASE_URL = "sqlite:///./financial_health_v2.db"
     print(f"📁 Connecting to Default SQLite: {DATABASE_URL}")
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
+engine_args = {}
+if "sqlite" in DATABASE_URL:
+    engine_args["connect_args"] = {"check_same_thread": False}
+else:
+    # Production DB (Postgres) Optimization
+    engine_args["pool_pre_ping"] = True  # Check connection liveness before usage (Critical fix for "server closed connection")
+    engine_args["pool_recycle"] = 1800   # Recycle connections every 30 mins to avoid stale timeouts
+    engine_args["pool_size"] = 10        # Maximum number of connections in the pool
+    engine_args["max_overflow"] = 20     # Max extra connections if pool is full
+
+engine = create_engine(DATABASE_URL, **engine_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

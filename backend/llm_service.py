@@ -50,7 +50,8 @@ def generate_llm_insight(score, flags, industry, metrics, lang="en"):
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.7,
-            max_tokens=300
+            max_tokens=300,
+            request_timeout=50 # explicit timeout to avoid freezing
         )
         
         return response.choices[0].message.content.strip()

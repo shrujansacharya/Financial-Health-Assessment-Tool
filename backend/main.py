@@ -130,6 +130,9 @@ async def upload_file(
         # 4. Generate PDF Report
         pdf_bytes = generate_pdf_report(result)
         report_id = f"{file.filename}_{score}" # Simple ID
+        # Simple LRU-style cleanup (prevent OOM)
+        if len(report_cache) > 50:
+            report_cache.clear() # Drastic but safe for demo
         report_cache[report_id] = pdf_bytes
         result['report_id'] = report_id
             
