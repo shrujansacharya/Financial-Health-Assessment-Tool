@@ -156,7 +156,13 @@ async def upload_file(
         # 5. Save to DB with Transaction Data
         if df is not None:
              # handle NaNs for JSON (Postgres doesn't like NaN)
-             result['transaction_data'] = df.where(pd.notnull(df), None).to_dict(orient='records')
+             # Fix: Convert ALL Timestamp columns to string for JSON serialization
+             df_json = df.copy()
+             for col in df_json.columns:
+                 if pd.api.types.is_datetime64_any_dtype(df_json[col]):
+                     df_json[col] = df_json[col].astype(str)
+                 
+             result['transaction_data'] = df_json.where(pd.notnull(df_json), None).to_dict(orient='records')
         
         save_report(db, result, file.filename)
             
