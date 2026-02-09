@@ -25,7 +25,10 @@ export const translations = {
         creditScore: "Creditworthiness Indicator*",
         taxStatus: "Preliminary Tax Risk Indicators*",
         forecast: "Next Month Revenue Forecast",
-        investorReport: "Download Investor Report"
+        investorReport: "Download Investor Report",
+        anomalies: "Anomaly Detection",
+        noAnomalies: "No operational anomalies detected.",
+        anomaliesDesc: "The AI flagged the following unusual transactions:"
     },
     hi: {
         title: "तत्काल वित्तीय स्वास्थ्य विश्लेषण",
@@ -53,6 +56,9 @@ export const translations = {
         creditScore: "क्रेडिट योग्यता (सिम्युलेटेड)",
         taxStatus: "कर अनुपालन जांच",
         forecast: "अगले महीने का राजस्व पूर्वानुमान",
-        investorReport: "निवेशक रिपोर्ट डाउनलोड करें"
+        investorReport: "निवेशक रिपोर्ट डाउनलोड करें",
+        anomalies: "विसंगति का पता लगाना (बीटा)",
+        noAnomalies: "कोई परिचालन विसंगति नहीं मिली।",
+        anomaliesDesc: "एआई ने निम्नलिखित असामान्य लेनदेन को चिह्नित किया:"
     }
 };

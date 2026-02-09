@@ -1,20 +1,27 @@
 import pandas as pd
 import numpy as np
 
+from categorization import categorize_transaction_heuristic # Import the new logic
+
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     """
     Smartly rename columns to match expected schema based on keywords.
     Expected: Date, Revenue, Operating Expenses, Loan Repayment, Accounts Receivable, Accounts Payable
+    Also handles Raw Bank formats: Debit, Credit, Withdrawal, Deposit, Description, Narration
     """
     df.columns = [str(c).strip() for c in df.columns]
     
     mappings = {
-        'Date': ['date', 'period', 'month', 'year', 'time', 'order date', 'invoice date', 'transaction date', 'purchase date', 'billing date'],
+        'Date': ['date', 'period', 'month', 'year', 'time', 'order date', 'invoice date', 'transaction date', 'purchase date', 'billing date', 'value date'],
         'Revenue': ['revenue', 'sales', 'gross sales', 'income', 'turnover', 'top line', 'total sales', 'net sales', 'amount', 'total amount'],
         'Operating Expenses': ['operating expenses', 'expenses', 'opex', 'costs', 'expenditure', 'cogs', 'total expenses', 'manufacturing price'],
         'Loan Repayment': ['loan', 'repayment', 'emi', 'debt', 'interest', 'liabilities'],
         'Accounts Receivable': ['receivable', 'ar', 'debtors', 'due from'],
-        'Accounts Payable': ['payable', 'ap', 'creditors', 'due to', 'owed']
+        'Accounts Payable': ['payable', 'ap', 'creditors', 'due to', 'owed'],
+        # New Raw Bank Columns
+        'Description': ['description', 'narration', 'particulars', 'transaction details', 'details', 'memo'],
+        'Debit': ['debit', 'withdrawal', 'dr', 'paid out', 'money out'],
+        'Credit': ['credit', 'deposit', 'cr', 'money in', 'received']
     }
     
     rename_map = {}
@@ -50,6 +57,49 @@ def analyze_financials(df: pd.DataFrame):
         # Phase 1: Intelligent Normalization
         df = normalize_columns(df)
         
+        # Phase 1.5: Raw Bank Statement Enrichment (Zero-Shot Categorization)
+        # If we have 'Description' + ('Debit'/'Credit' OR 'Amount'), parse it.
+        if 'Description' in df.columns and ('Debit' in df.columns or 'Credit' in df.columns):
+            print("Detected Raw Bank Statement. Running AI Categorization...")
+            
+            # Ensure numeric
+            if 'Debit' in df.columns:
+                df['Debit'] = pd.to_numeric(df['Debit'], errors='coerce').fillna(0)
+            else:
+                df['Debit'] = 0
+                
+            if 'Credit' in df.columns:
+                df['Credit'] = pd.to_numeric(df['Credit'], errors='coerce').fillna(0)
+            else:
+                df['Credit'] = 0
+                
+            # Logic: If Credit exists > 0 -> Revenue. If Debit exists > 0 -> Expense or Loan
+            # Initialize core columns if missing
+            if 'Revenue' not in df.columns: df['Revenue'] = 0.0
+            if 'Operating Expenses' not in df.columns: df['Operating Expenses'] = 0.0
+            if 'Loan Repayment' not in df.columns: df['Loan Repayment'] = 0.0
+            
+            # Iterate and categorize
+            # Using simple iteration for clarity and control
+            for idx, row in df.iterrows():
+                # 1. Handle Income (Credit)
+                credit_val = row['Credit']
+                if credit_val > 0:
+                    df.at[idx, 'Revenue'] += credit_val
+                    continue # It's income
+                
+                # 2. Handle Expense (Debit)
+                debit_val = row['Debit']
+                if debit_val > 0:
+                    description = str(row['Description'])
+                    category = categorize_transaction_heuristic(description) # Use Hybrid Heuristic
+                    
+                    if category == 'Loan Repayment':
+                         df.at[idx, 'Loan Repayment'] += debit_val
+                    else:
+                         # Default to OpEx
+                         df.at[idx, 'Operating Expenses'] += debit_val
+
         # Phase 2: Logic Derivation (if standard cols missing)
         # Fallback: Revenue = Quantity * Unit Price 
         if 'Revenue' not in df.columns:
@@ -222,10 +272,46 @@ def analyze_financials(df: pd.DataFrame):
             # New Keys
             "credit_score": int(credit_score),
             "tax_status": tax_status,
-            "forecast_next_month": float(round(forecast_next_month, 2))
+            "forecast_next_month": float(round(forecast_next_month, 2)),
+            "anomalies": detect_anomalies(df)
         }
+        
         
     except Exception as e:
         import traceback
         traceback.print_exc()
         return {"error": f"Analysis failed: {str(e)}"}
+
+from sklearn.ensemble import IsolationForest
+
+def detect_anomalies(df):
+    """
+    Detects anomalies in financial transactions using Isolation Forest.
+    Focuses on 'Net Cash Flow' and 'Operating Expenses'.
+    """
+    try:
+        # Select numeric columns for anomaly detection
+        # We use a copy to avoid SettingWithCopyWarning on the original df if not needed
+        data = df[['Net Cash Flow', 'Operating Expenses']].fillna(0)
+        
+        # If dataset is too small, anomaly detection might not be meaningful or could error
+        if len(data) < 5:
+            return []
+
+        # Train model
+        # contamination=0.05 assumes ~5% of data is anomalous
+        model = IsolationForest(contamination=0.05, random_state=42) 
+        df['anomaly'] = model.fit_predict(data)
+        
+        # -1 indicates anomaly
+        anomalies_df = df[df['anomaly'] == -1]
+        
+        # Convert to list of dicts for JSON serialization
+        anomalies = anomalies_df[['Date', 'Revenue', 'Operating Expenses', 'Net Cash Flow']].copy()
+        anomalies['Date'] = anomalies['Date'].dt.strftime('%Y-%m-%d')
+        
+        return anomalies.to_dict('records')
+        
+    except Exception as e:
+        print(f"Anomaly detection failed: {e}")
+        return []

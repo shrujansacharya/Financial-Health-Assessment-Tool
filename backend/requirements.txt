@@ -11,3 +11,7 @@ python-dotenv
 reportlab
 matplotlib
 openai
+scikit-learn
+thefuzz
+tabulate
+google-genai

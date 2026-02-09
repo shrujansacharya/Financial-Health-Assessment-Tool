@@ -57,6 +57,7 @@ class Report(Base):
     credit_score = Column(Integer) # Simulated 300-900 score
     tax_status = Column(String) # Compliant / Non-Compliant
     forecast_next_month = Column(Float) # Predicted Revenue
+    transaction_data = Column(JSON) # Persistence for Chatbot (New)
 
 def init_db():
     Base.metadata.create_all(bind=engine)
@@ -73,7 +74,8 @@ def save_report(db, data, filename):
         ai_insights=data.get('ai_insights', ''),
         credit_score=data.get('credit_score', 0),
         tax_status=data.get('tax_status', 'Pending'),
-        forecast_next_month=data.get('forecast_next_month', 0.0)
+        forecast_next_month=data.get('forecast_next_month', 0.0),
+        transaction_data=data.get('transaction_data', []) # New field
     )
     db.add(db_report)
     db.commit()

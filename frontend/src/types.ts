@@ -15,6 +15,7 @@ export interface FinancialData {
     credit_score?: number;
     tax_status?: string;
     forecast_next_month?: number;
+    anomalies?: Array<{ Date: string; Revenue: number; "Operating Expenses": number; "Net Cash Flow": number; }>;
 }
 
 export type Language = 'en' | 'hi';

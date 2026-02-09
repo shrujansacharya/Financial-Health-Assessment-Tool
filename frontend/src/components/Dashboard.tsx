@@ -301,6 +301,48 @@ export default function Dashboard({ data, lang, t }: { data: FinancialData, lang
                         </div>
                     </div>
 
+                    {/* Anomaly Detection Panel (NEW) */}
+                    <div className="glass-panel p-8 mt-8 border-red-500/20">
+                        <div className="flex items-center gap-3 mb-6">
+                            <AlertTriangle size={20} className="text-red-400" />
+                            <h3 className="text-gray-200 text-lg font-bold tracking-tight">
+                                {t.anomalies || "Anomaly Detection (Beta)"}
+                            </h3>
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 uppercase font-bold tracking-wider border border-red-500/20">
+                                AI Guard
+                            </span>
+                        </div>
+
+                        {!data.anomalies || data.anomalies.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-10 text-gray-500 gap-3 border border-dashed border-white/5 rounded-xl bg-white/5">
+                                <BadgeCheck size={32} className="text-emerald-500/50" />
+                                <span className="text-sm font-medium">{t.noAnomalies || "No operational anomalies detected."}</span>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <p className="text-xs text-gray-400 mb-4">{t.anomaliesDesc || "The AI flagged the following unusual transactions:"}</p>
+                                <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar pr-2">
+                                    {data.anomalies.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between items-center bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 rounded-lg p-3 transition-colors group">
+                                            <div className="flex flex-col">
+                                                <span className="text-xs text-gray-400 font-mono">{item.Date}</span>
+                                                <span className="text-sm text-red-200 font-medium">Unusual Cash Flow</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="block text-red-400 font-bold font-mono">
+                                                    {item["Net Cash Flow"] < 0 ? "-" : "+"}₹{Math.abs(item["Net Cash Flow"]).toLocaleString()}
+                                                </span>
+                                                <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                                                    Rev: {item.Revenue} | Exp: {item["Operating Expenses"]}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                 </div>
             </div>
         </div>

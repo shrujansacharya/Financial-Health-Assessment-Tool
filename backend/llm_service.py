@@ -14,20 +14,22 @@ def generate_llm_insight(score, flags, industry, metrics, lang="en"):
     Calls OpenAI to generate a sophisticated financial insight.
     Falls back to mock if no key or error.
     """
-    if not OPENAI_API_KEY:
-        print("No OpenAI Key found. Using Mock.")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    if not GEMINI_API_KEY:
+        print("No Gemini Key found. Using Mock.")
         return None 
         
     try:
-        system_prompt = f"""
+        from google import genai
+        client = genai.Client(api_key=GEMINI_API_KEY)
+
+        prompt = f"""
         You are an expert financial consultant for a {industry} SME. 
         Analyze the provided financial metrics and give a professional, investor-grade assessment.
         Output language: {lang}.
         Tone: Professional, direct, actionable.
         MaxLength: 150 words.
-        """
         
-        user_prompt = f"""
         Business Score: {score}/100.
         Industry: {industry}.
         Key Metrics:
@@ -43,19 +45,16 @@ def generate_llm_insight(score, flags, industry, metrics, lang="en"):
         3. 2 Specific banking products in India (specific bank names) that would help (e.g. OD, Working Capital Loan)
         """
         
-        response = openai.ChatCompletion.create(
-            model="gpt-4o", # or gpt-3.5-turbo
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.7,
-            max_tokens=300,
-            request_timeout=50 # explicit timeout to avoid freezing
+        from gemini_utils import get_gemini_model_name
+        model_name = get_gemini_model_name()
+
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt
         )
         
-        return response.choices[0].message.content.strip()
+        return response.text.strip()
         
     except Exception as e:
-        print(f"OpenAI Call Failed: {e}")
+        print(f"Gemini Call Failed: {e}")
         return None

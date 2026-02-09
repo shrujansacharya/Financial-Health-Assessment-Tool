@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import pandas as pd
 import io
@@ -10,6 +11,8 @@ import traceback
 from database import SessionLocal, init_db, save_report
 from report_generator import generate_pdf_report
 from llm_service import generate_llm_insight
+# New Imports
+import json
 
 app = FastAPI()
 
@@ -33,8 +36,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Store report buffers in memory for demo simplicity (or could save to disk)
+# Store report buffers in memory
 report_cache = {}
+
+# SINGLE USER SESSION CACHE FOR RAG CHAT
+active_df = None 
+
+class ChatRequest(BaseModel):
+    message: str
+
+# ... (Upload Endpoint remains mostly the same, but updates active_df)
 
 @app.post("/upload")
 async def upload_file(
@@ -43,19 +54,20 @@ async def upload_file(
     industry: str = Form("Retail"),
     db: Session = Depends(get_db)
 ):
-    print(f"Received file: {file.filename}, language: {language}, industry: {industry}")
+    global active_df
+    # ... (File parsing logic remains the same)
+    # ... (Dataframe loading logic remains the same)
     
-    # 1. File Parsing
-        # 1. File Parsing
+    # ... (File parsing logic) ...
     try:
-        # Use file.file directly to avoid loading entire file into RAM (Prevent OOM on Render)
+        # Use file.file directly...
         df = None
-        
         if file.filename.endswith('.csv'):
             df = pd.read_csv(file.file)
         elif file.filename.endswith(('.xls', '.xlsx')):
             df = pd.read_excel(file.file)
         elif file.filename.endswith('.pdf'):
+            # ... (PDF logic) ...
             try:
                 import pdfplumber
                 with pdfplumber.open(file.file) as pdf:
@@ -65,33 +77,46 @@ async def upload_file(
                         tables = page.extract_tables()
                         for table in tables:
                             for row in table:
-                                # Clean mock strategy: assume row is [Date, Description, Amount, ...]
-                                # This is a heuristic for hackathon demo purposes
                                 if row and len(row) >= 2:
                                     data.append(row)
-                
-                # Convert list to DataFrame
                 if data:
                     df = pd.DataFrame(data[1:], columns=data[0])
-                    print("Extracted PDF Table Data")
-                else:
-                    raise ValueError("No tabular data found in PDF")
-
-            except Exception as e:
-                print(f"PDF extraction error: {e}")
-                raise HTTPException(status_code=400, detail="Could not parse PDF table data. Please ensure it is a standard bank statement format.")
+            except Exception:
+                raise HTTPException(status_code=400, detail="PDF Error")
         else:
-             raise HTTPException(status_code=400, detail="Invalid file format. Only CSV, XLSX, or PDF allowed.")
-            
-        print(f"Dataframe loaded. Columns: {df.columns.tolist() if df is not None else 'None'}")
-        
+             raise HTTPException(status_code=400, detail="Invalid Format")
+
+        # SAVE TO DISK FOR CHAT PERSISTENCE
+        if df is not None:
+             save_path = os.path.abspath("latest_upload.csv")
+             df.to_csv(save_path, index=False)
+             print(f"DEBUG: Successfully saved dataframe to {save_path}")
+             print(f"DEBUG: File exists check: {os.path.exists(save_path)}")
+
+
         # 2. Analysis
         result = analyze_financials(df)
         
+        # --- RAG PREPARATION ---
+        # Update the global dataframe for chat
+        from engine import normalize_columns
+        active_df = normalize_columns(df.copy())
+        # Ensure we have numeric types for calculation
+        cols_to_parse = ['Revenue', 'Operating Expenses', 'Loan Repayment', 'Accounts Receivable', 'Accounts Payable']
+        for col in cols_to_parse:
+            if col in active_df.columns:
+                 active_df[col] = pd.to_numeric(active_df[col], errors='coerce').fillna(0)
+        print("Initialized Chat Context in Memory")
+        # -----------------------
+
         if "error" in result:
              raise HTTPException(status_code=400, detail=result["error"])
-             
-        # 3. AI Insights (Real LLM or Mock)
+
+        # ... (Rest of Analysis logic) ...
+
+
+        # ... (Rest of Analysis/mock logic remains same)
+        # 3. AI Insights
         score = result['score']
         flags = result['flags']
         metrics = result['metrics']
@@ -102,24 +127,18 @@ async def upload_file(
         if real_insight_en:
             result['ai_insights'] = real_insight_en
             result['ai_insights_en'] = real_insight_en
-            # If we had a Hindi LLM call, we'd do it here. For now, mock fallback for Hindi if needed, or same.
             result['ai_insights_hi'] = "Hindi translation pending real API support." 
         else:
-            # Fallback to Rule-Based Mock
+            # Fallback
             narrative_data = generate_narrative(score, flags, metrics, "en")
-            
-            # Construct formatted string for Frontend/DB
             if isinstance(narrative_data, dict) and "summary" in narrative_data:
                 full_text = f"EXECUTIVE SUMMARY\n{narrative_data['summary']}\n\nSTRATEGIC DIAGNOSIS\n{narrative_data['diagnosis']}\n\nRECOMMENDATIONS\n"
                 for i, rec in enumerate(narrative_data['recommendations'], 1):
                     full_text += f"{i}. {rec}\n"
-                
                 result['ai_insights'] = full_text
-                result['structured_insights'] = narrative_data
             else:
                  result['ai_insights'] = str(narrative_data)
 
-            # Hindi Mock
             narrative_hi = generate_narrative(score, flags, metrics, "hi")
             result['ai_insights_hi'] = narrative_hi.get('full_text', '')
             result['ai_insights_en'] = result['ai_insights']
@@ -129,23 +148,23 @@ async def upload_file(
             
         # 4. Generate PDF Report
         pdf_bytes = generate_pdf_report(result)
-        report_id = f"{file.filename}_{score}" # Simple ID
-        # Simple LRU-style cleanup (prevent OOM)
-        if len(report_cache) > 50:
-            report_cache.clear() # Drastic but safe for demo
+        report_id = f"{file.filename}_{score}" 
+        if len(report_cache) > 50: report_cache.clear() 
         report_cache[report_id] = pdf_bytes
         result['report_id'] = report_id
             
-        # 5. Save to DB
+        # 5. Save to DB with Transaction Data
+        if df is not None:
+             # handle NaNs for JSON (Postgres doesn't like NaN)
+             result['transaction_data'] = df.where(pd.notnull(df), None).to_dict(orient='records')
+        
         save_report(db, result, file.filename)
             
-        print("Analysis successful")
         return JSONResponse(content=result)
         
     except HTTPException:
         raise
     except Exception as e:
-        print("ERROR PROCESSING REQUEST:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
@@ -154,6 +173,87 @@ async def get_report(report_id: str):
     if report_id in report_cache:
         return Response(content=report_cache[report_id], media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=report_{report_id}.pdf"})
     return HTTPException(status_code=404, detail="Report not found")
+
+@app.post("/chat")
+async def chat_with_data(request: ChatRequest, db: Session = Depends(get_db)):
+    """
+    Financial Copilot Endpoint
+    Role: Explainer & Advisor (No raw data calculation)
+    """
+    from database import Report
+    from gemini_utils import get_gemini_model_name
+    from google import genai
+    
+    # 1. Fetch Latest Context from DB
+    last_report = db.query(Report).order_by(Report.upload_date.desc()).first()
+    
+    if not last_report:
+        return JSONResponse(content={"answer": "I don't have any financial analysis yet. Please upload a Bank Statement on the dashboard first!"})
+
+    # 2. Build Knowledge Base (Context)
+    # This is the "computed financial summary" the user requested
+    context_summary = {
+        "Health Score": f"{last_report.score}/100",
+        "Revenue Growth": f"{last_report.revenue_growth}%",
+        "Expense Ratio": f"{last_report.expense_ratio}",
+        "Net Cash Flow": f"{last_report.net_cash_flow}",
+        "Identified Risks": last_report.risk_flags, # List of strings
+        "Tax Status": last_report.tax_status,
+        "Credit Score Est": last_report.credit_score,
+        "AI Insights": last_report.ai_insights
+    }
+
+    print(f"DEBUG: Chat Context Loaded: {context_summary}")
+    
+    # 3. Setup GenAI Client
+    api_key = os.getenv("GEMINI_API_KEY") # Prioritize Gemini as per recent setup
+    if not api_key:
+        return JSONResponse(content={"answer": "Offline Mode: API Key missing."})
+
+    try:
+        client = genai.Client(api_key=api_key)
+        model_name = get_gemini_model_name()
+        
+        # 4. Construct System Prompt (The "Brain")
+        system_prompt = f"""
+        You are a **Financial Analysis Assistant** for SMEs.
+        Your role is to explain the user's financial health based ONLY on the provided summary.
+        
+        ### 📊 Financial Context (ALREADY COMPUTED):
+        {context_summary}
+        
+        ### 👑 Guidelines:
+        1. **Explain, Don't Calculate**: The numbers are already there. Explain WHAT they mean.
+        2. **Be Insightful**: If the score is low, explain why (look at risks). If high, congratulate them.
+        3. **Simple Business Language**: Avoid jargon. Speak to a business owner.
+        4. **Safety & Compliance**: 
+           - Do NOT give legal, tax, or investment advice.
+           - Always imply these are "indicative insights".
+        5. **Scope**: Answer questions about the score, cash flow, risks, and improvements.
+        
+        ### 🚫 Restrictions:
+        - Do not analyze raw CSV rows (you don't have them).
+        - Do not output Python code.
+        - Do not make up numbers not in the context.
+        
+        User Question: "{request.message}"
+        
+        Answer (Short, Professional, Helpful):
+        """
+        
+        # 5. Generate Answer (Text Only)
+        response = client.models.generate_content(
+            model=model_name, 
+            contents=system_prompt
+        )
+        
+        answer = response.text.strip()
+        return JSONResponse(content={"answer": answer})
+        
+    except Exception as e:
+        print(f"Chat Consultant Error: {e}")
+        # MOCK FALLBACK for Demo Resilience
+        return JSONResponse(content={"answer": f"I can see your Financial Score is {last_report.score}/100. (API Connection Issue: {str(e)})"})
 
 def generate_narrative(score, flags, metrics, lang):
     if lang == 'hi':

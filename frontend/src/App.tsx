@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import Upload from './components/Upload'
+import ChatInterface from './components/ChatInterface'; // Import
+
 import Dashboard from './components/Dashboard'
 import { Activity, Languages } from 'lucide-react'
 import type { FinancialData, Language } from './types'
@@ -58,7 +60,10 @@ function App() {
         {!data ? (
           <Upload onUploadSuccess={handleUploadSuccess} setLoading={setLoading} loading={loading} lang={lang} t={t} />
         ) : (
-          <Dashboard data={data} lang={lang} t={t} />
+          <>
+            <Dashboard data={data} lang={lang} t={t} />
+            <ChatInterface />
+          </>
         )}
       </main>
 
