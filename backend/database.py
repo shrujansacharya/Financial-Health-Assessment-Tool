@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Text, DateTime, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Float, Text, DateTime, JSON, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -61,6 +61,28 @@ class Report(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    
+    # --- AUTO MIGRATION (Fix for Render Deployment) ---
+    try:
+        from sqlalchemy import text
+        with engine.connect() as connection:
+            # Check if transaction_data column exists
+            # This query works for PostgreSQL (Render)
+            if 'postgres' in str(engine.url):
+                print("Checking for schema updates (Postgres)...")
+                result = connection.execute(text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name='reports' AND column_name='transaction_data';"
+                ))
+                if not result.fetchone():
+                    print("⚠️ Migration: Adding missing 'transaction_data' column...")
+                    connection.execute(text("ALTER TABLE reports ADD COLUMN transaction_data JSON;"))
+                    connection.commit()
+                    print("✅ Migration: Column added successfully.")
+                else:
+                    print("Schema is up to date.")
+    except Exception as e:
+        print(f"Migration Warning: {e}")
+    # --------------------------------------------------
 
 def save_report(db, data, filename):
     db_report = Report(
