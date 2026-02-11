@@ -6,6 +6,7 @@ import Dashboard from './components/Dashboard'
 import { Activity, Languages } from 'lucide-react'
 import type { FinancialData, Language } from './types'
 import { translations } from './translations'
+import { Analytics } from "@vercel/analytics/react"
 
 function App() {
   const [data, setData] = useState<FinancialData | null>(null);
@@ -72,6 +73,7 @@ function App() {
           Financial Health Analysis System
         </p>
       </footer>
+      <Analytics />
     </div>
   )
 }
