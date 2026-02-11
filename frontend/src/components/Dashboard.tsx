@@ -33,7 +33,7 @@ export default function Dashboard({ data, lang, t }: { data: FinancialData, lang
                     </h2>
 
                     <div className="relative w-56 h-56 z-10">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                             <PieChart>
                                 <Pie
                                     data={gaugeData}
@@ -190,7 +190,8 @@ export default function Dashboard({ data, lang, t }: { data: FinancialData, lang
                             onClick={() => {
                                 const reportId = (data as any).report_id;
                                 if (reportId) {
-                                    window.open(`http://localhost:8000/report/${reportId}`, '_blank');
+                                    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                                    window.open(`${apiUrl}/report/${reportId}`, '_blank');
                                 } else {
                                     alert("Report generation failed or not available.");
                                 }
@@ -211,7 +212,7 @@ export default function Dashboard({ data, lang, t }: { data: FinancialData, lang
                             <TrendingUp size={14} className="text-emerald-400" /> {t.revExp}
                         </h3>
                         <div className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                                 <AreaChart data={data.charts_data}>
                                     <defs>
                                         <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -245,7 +246,7 @@ export default function Dashboard({ data, lang, t }: { data: FinancialData, lang
                                 <Wallet size={14} className="text-primary" /> {t.cashFlow}
                             </h3>
                             <div className="h-[200px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                                     <BarChart data={data.charts_data}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                                         <XAxis dataKey="Month" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} dy={8} />
@@ -265,7 +266,7 @@ export default function Dashboard({ data, lang, t }: { data: FinancialData, lang
                                 <Building2 size={14} className="text-secondary" /> {t.outflow}
                             </h3>
                             <div className="h-[200px] w-full flex items-center justify-center relative">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                                     <PieChart>
                                         <Pie
                                             data={[

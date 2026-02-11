@@ -48,7 +48,7 @@ export default function Upload({ onUploadSuccess, setLoading, loading, lang, t }
         formData.append('industry', industry);
 
         try {
-            const apiUrl = import.meta.env.VITE_API_URL;
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
             const response = await fetch(`${apiUrl}/upload`, {
                 method: 'POST',
                 body: formData,
